@@ -8,92 +8,124 @@
     body {
       font-family: 'Arial', sans-serif;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      background-color: #f0f0f0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      margin: 0;
       perspective: 1000px;
     }
 
     .scene {
-      width: 100px;
-      height: 100px;
-      margin: 0 auto;
-      transform-style: preserve-3d;
-      animation: spin 4s linear infinite;
+      width: 150px;
+      height: 150px;
+      margin: 50px auto;
+      perspective: 1000px;
     }
 
     .cube {
-      position: relative;
       width: 100%;
       height: 100%;
+      position: relative;
       transform-style: preserve-3d;
-      transition: transform 0.5s ease-in-out;
+      transition: transform 1s;
     }
 
-    .cube.show-1 { transform: translateZ(-50px) rotateY(0deg); }
-    .cube.show-2 { transform: translateZ(-50px) rotateY(-90deg); }
-    .cube.show-3 { transform: translateZ(-50px) rotateX(90deg); }
-    .cube.show-4 { transform: translateZ(-50px) rotateX(-90deg); }
-    .cube.show-5 { transform: translateZ(-50px) rotateY(90deg); }
-    .cube.show-6 { transform: translateZ(-50px) rotateY(180deg); }
+    .cube.rolling {
+      animation: roll 0.5s linear;
+    }
 
-    .cube > div {
+    .face {
       position: absolute;
-      width: 100px;
-      height: 100px;
-      background-color: #fff;
-      border: 1px solid #000;
+      width: 150px;
+      height: 150px;
+      background: white;
+      border: 2px solid #333;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: 3em;
-      color: #000;
+      font-size: 60px;
+      font-weight: bold;
+      color: #333;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.1);
     }
 
-    .cube > div:nth-child(1) { transform: rotateY(0deg) translateZ(50px); }
-    .cube > div:nth-child(2) { transform: rotateY(90deg) translateZ(50px); }
-    .cube > div:nth-child(3) { transform: rotateX(-90deg) translateZ(50px); }
-    .cube > div:nth-child(4) { transform: rotateX(90deg) translateZ(50px); }
-    .cube > div:nth-child(5) { transform: rotateY(-90deg) translateZ(50px); }
-    .cube > div:nth-child(6) { transform: rotateY(180deg) translateZ(50px); }
+    .face:nth-child(1) { transform: rotateY(0deg) translateZ(75px); }
+    .face:nth-child(2) { transform: rotateY(90deg) translateZ(75px); }
+    .face:nth-child(3) { transform: rotateY(180deg) translateZ(75px); }
+    .face:nth-child(4) { transform: rotateY(-90deg) translateZ(75px); }
+    .face:nth-child(5) { transform: rotateX(90deg) translateZ(75px); }
+    .face:nth-child(6) { transform: rotateX(-90deg) translateZ(75px); }
 
-    button {
+    #rollButton {
       padding: 10px 20px;
+      font-size: 16px;
       background-color: #4CAF50;
       color: white;
       border: none;
+      border-radius: 5px;
       cursor: pointer;
-      margin-top: 20px;
+      transition: background-color 0.3s;
     }
 
-    @keyframes spin {
-      0% { transform: rotateX(0deg) rotateY(0deg); }
-      100% { transform: rotateX(360deg) rotateY(360deg); }
+    #rollButton:hover {
+      background-color: #45a049;
+    }
+
+    #result {
+      margin-top: 20px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    @keyframes roll {
+      0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+      100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg); }
     }
   </style>
 </head>
 <body>
   <div class="scene">
     <div class="cube">
-      <div>1</div>
-      <div>2</div>
-      <div>3</div>
-      <div>4</div>
-      <div>5</div>
-      <div>6</div>
+      <div class="face">1</div>
+      <div class="face">2</div>
+      <div class="face">3</div>
+      <div class="face">4</div>
+      <div class="face">5</div>
+      <div class="face">6</div>
     </div>
   </div>
   <button id="rollButton">Roll the Dice</button>
+  <div id="result"></div>
 
   <script>
     const cube = document.querySelector('.cube');
     const rollButton = document.getElementById('rollButton');
+    const resultDisplay = document.getElementById('result');
 
-    rollButton.addEventListener('click', () => {
-      const randomNumber = Math.floor(Math.random() * 6) + 1;
-      cube.className = 'cube show-' + randomNumber;
-    });
+    function rollDice() {
+      rollButton.disabled = true;
+      cube.classList.add('rolling');
+      
+      setTimeout(() => {
+        cube.classList.remove('rolling');
+        const randomFace = Math.floor(Math.random() * 6);
+        const rotations = [
+          'rotateX(0deg) rotateY(0deg)',
+          'rotateY(-90deg)',
+          'rotateY(-180deg)',
+          'rotateY(90deg)',
+          'rotateX(-90deg)',
+          'rotateX(90deg)'
+        ];
+        cube.style.transform = rotations[randomFace];
+        resultDisplay.textContent = `You rolled a ${randomFace + 1}!`;
+        rollButton.disabled = false;
+      }, 500);
+    }
+
+    rollButton.addEventListener('click', rollDice);
   </script>
 </body>
 </html>
