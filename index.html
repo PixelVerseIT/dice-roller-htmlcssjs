@@ -11,6 +11,8 @@
       --secondary-color: #764ba2;
       --background-color: #2c3e50;
       --text-color: #ecf0f1;
+      --dice-color: #ffffff;
+      --dice-shadow: rgba(0, 0, 0, 0.2);
     }
 
     body {
@@ -28,6 +30,8 @@
 
     .container {
       text-align: center;
+      max-width: 800px;
+      padding: 20px;
     }
 
     h1 {
@@ -49,6 +53,12 @@
       width: 100px;
       height: 100px;
       perspective: 1000px;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+
+    .scene:hover {
+      transform: scale(1.05);
     }
 
     .cube {
@@ -67,7 +77,7 @@
       position: absolute;
       width: 100px;
       height: 100px;
-      background: white;
+      background: var(--dice-color);
       border: 2px solid #333;
       display: flex;
       justify-content: center;
@@ -75,8 +85,9 @@
       font-size: 40px;
       font-weight: bold;
       color: #333;
-      box-shadow: inset 0 0 15px rgba(0,0,0,0.1);
+      box-shadow: inset 0 0 15px var(--dice-shadow);
       border-radius: 10px;
+      backface-visibility: hidden;
     }
 
     .face:nth-child(1) { transform: rotateY(0deg) translateZ(50px); }
@@ -88,9 +99,11 @@
 
     .controls {
       display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
+      justify-content: center;
       align-items: center;
       gap: 15px;
+      margin-bottom: 20px;
     }
 
     button, select {
@@ -135,23 +148,73 @@
     .history {
       margin-top: 20px;
       font-size: 14px;
-      max-height: 100px;
+      max-height: 150px;
       overflow-y: auto;
       background-color: rgba(255, 255, 255, 0.1);
       padding: 10px;
       border-radius: 10px;
     }
 
+    .history-item {
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .history-item:last-child {
+      border-bottom: none;
+    }
+
+    .stats {
+      justify-content: space-around;
+      margin-top: 20px;
+      background-color: rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      border-radius: 10px;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
     @keyframes roll {
       0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
       100% { transform: rotateX(720deg) rotateY(720deg) rotateZ(720deg); }
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 10px;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      .scene {
+        width: 80px;
+        height: 80px;
+      }
+
+      .face {
+        width: 80px;
+        height: 80px;
+        font-size: 32px;
+      }
+
+      .controls {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>3D Dice Roller</h1>
-    <div class="dice-container" id="diceContainer"></div>
     <div class="controls">
       <select id="diceCount">
         <option value="1">1 Die</option>
@@ -161,7 +224,22 @@
       </select>
       <button id="rollButton">Roll the Dice</button>
     </div>
+    <div class="dice-container" id="diceContainer"></div>
     <div id="result"></div>
+    <div class="stats">
+      <div class="stat">
+        <div>Total Rolls</div>
+        <div id="totalRolls" class="stat-value">0</div>
+      </div>
+      <div class="stat">
+        <div>Highest Roll</div>
+        <div id="highestRoll" class="stat-value">0</div>
+      </div>
+      <div class="stat">
+        <div>Average Roll</div>
+        <div id="averageRoll" class="stat-value">0.00</div>
+      </div>
+    </div>
     <div class="history" id="history"></div>
   </div>
 
@@ -171,8 +249,14 @@
     const resultDisplay = document.getElementById('result');
     const diceCountSelect = document.getElementById('diceCount');
     const historyContainer = document.getElementById('history');
+    const totalRollsDisplay = document.getElementById('totalRolls');
+    const highestRollDisplay = document.getElementById('highestRoll');
+    const averageRollDisplay = document.getElementById('averageRoll');
 
     let rollHistory = [];
+    let totalRolls = 0;
+    let highestRoll = 0;
+    let totalSum = 0;
 
     function createDice(count) {
       diceContainer.innerHTML = '';
@@ -189,66 +273,80 @@
             <div class="face">6</div>
           </div>
         `;
+        scene.addEventListener('click', () => rollSingleDie(scene.querySelector('.cube')));
         diceContainer.appendChild(scene);
       }
     }
 
     function rollDice() {
-      rollButton.disabled = true;
       const cubes = document.querySelectorAll('.cube');
+      rollButton.disabled = true;
       let results = [];
 
-      cubes.forEach(cube => {
-        cube.classList.add('rolling');
-        
-        setTimeout(() => {
-          cube.classList.remove('rolling');
-          const randomFace = Math.floor(Math.random() * 6);
-          const rotations = [
-            'rotateX(0deg) rotateY(0deg)',
-            'rotateY(-90deg)',
-            'rotateY(-180deg)',
-            'rotateY(90deg)',
-            'rotateX(-90deg)',
-            'rotateX(90deg)'
-          ];
-          cube.style.transform = rotations[randomFace];
-          results.push(randomFace + 1);
-        }, 800);
-      });
+      cubes.forEach(cube => rollSingleDie(cube, results));
 
       setTimeout(() => {
         const total = results.reduce((sum, num) => sum + num, 0);
+        updateStats(total);
         const resultText = `You rolled: ${results.join(', ')} (Total: ${total})`;
         resultDisplay.textContent = resultText;
+        updateHistory(resultText);
         rollButton.disabled = false;
-
-        // update history
-        rollHistory.unshift(resultText);
-        if (rollHistory.length > 5) rollHistory.pop();
-        updateHistory();
       }, 850);
     }
 
-    function updateHistory() {
-      historyContainer.innerHTML = rollHistory.map(roll => `<div>${roll}</div>`).join('');
+    function rollSingleDie(cube, results = []) {
+      cube.classList.add('rolling');
+      
+      setTimeout(() => {
+        cube.classList.remove('rolling');
+        const randomFace = Math.floor(Math.random() * 6);
+        const rotations = [
+          'rotateX(0deg) rotateY(0deg)',
+          'rotateY(-90deg)',
+          'rotateY(-180deg)',
+          'rotateY(90deg)',
+          'rotateX(-90deg)',
+          'rotateX(90deg)'
+        ];
+        cube.style.transform = rotations[randomFace];
+        results.push(randomFace + 1);
+
+        if (results.length === document.querySelectorAll('.cube').length) {
+          const total = results.reduce((sum, num) => sum + num, 0);
+          updateStats(total);
+          const resultText = `You rolled: ${results.join(', ')} (Total: ${total})`;
+          resultDisplay.textContent = resultText;
+          updateHistory(resultText);
+        }
+      }, 800);
+    }
+
+    function updateHistory(resultText) {
+      rollHistory.unshift(resultText);
+      if (rollHistory.length > 10) rollHistory.pop();
+      historyContainer.innerHTML = rollHistory.map(roll => `<div class="history-item">${roll}</div>`).join('');
+    }
+
+    function updateStats(total) {
+      totalRolls++;
+      totalSum += total;
+      highestRoll = Math.max(highestRoll, total);
+
+      totalRollsDisplay.textContent = totalRolls;
+      highestRollDisplay.textContent = highestRoll;
+      averageRollDisplay.textContent = (totalSum / totalRolls).toFixed(2);
     }
 
     rollButton.addEventListener('click', rollDice);
+    diceCountSelect.addEventListener('change', () => createDice(parseInt(diceCountSelect.value)));
 
-    diceCountSelect.addEventListener('change', () => {
-      const count = parseInt(diceCountSelect.value);
-      createDice(count);
-    });
-
-    // keyboard space bar support
     document.addEventListener('keydown', (event) => {
       if (event.code === 'Space' && !rollButton.disabled) {
         rollDice();
       }
     });
 
-    // start with 1 dice
     createDice(1);
   </script>
 </body>
