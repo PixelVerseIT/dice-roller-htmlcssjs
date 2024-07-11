@@ -317,6 +317,29 @@
     let highestRoll = 0;
     let totalSum = 0;
 
+    // load local storage data
+    function loadData() {
+      const savedData = JSON.parse(localStorage.getItem('diceRollerData')) || {};
+      rollHistory = savedData.history || [];
+      totalRolls = savedData.totalRolls || 0;
+      highestRoll = savedData.highestRoll || 0;
+      totalSum = savedData.totalSum || 0;
+
+      updateHistoryDisplay();
+      updateStatsDisplay();
+    }
+
+    // save to local storage
+    function saveData() {
+      const dataToSave = {
+        history: rollHistory,
+        totalRolls,
+        highestRoll,
+        totalSum
+      };
+      localStorage.setItem('diceRollerData', JSON.stringify(dataToSave));
+    }
+
     function createDice(count) {
       diceContainer.innerHTML = '';
       for (let i = 0; i < count; i++) {
@@ -350,11 +373,7 @@
         resultDisplay.textContent = resultText;
         updateHistory(resultText);
         rollButton.disabled = false;
-      }, 850);
-    }
-
-    function getRandomRotation() {
-      return Math.floor(Math.random() * 360);
+      }, 2600); // slower animation
     }
 
     function rollSingleDie(cube, results = []) {
@@ -362,18 +381,12 @@
       cube.style.transform = `rotateX(0deg) rotateY(0deg) rotateZ(0deg)`;
       
       setTimeout(() => {
-        cube.style.transition = 'transform 1.5s cubic-bezier(0.25, 0.25, 0.75, 0.75)';
-        const randomFace = Math.floor(Math.random() * 6);
-        const rotations = [
-          `rotateX(${getRandomRotation()}deg) rotateY(${getRandomRotation()}deg) rotateZ(360deg)`,
-          `rotateX(${getRandomRotation()}deg) rotateY(${getRandomRotation()}deg) rotateZ(450deg)`,
-          `rotateX(${getRandomRotation()}deg) rotateY(${getRandomRotation()}deg) rotateZ(540deg)`,
-          `rotateX(${getRandomRotation()}deg) rotateY(${getRandomRotation()}deg) rotateZ(630deg)`,
-          `rotateX(${getRandomRotation()}deg) rotateY(${getRandomRotation()}deg) rotateZ(720deg)`,
-          `rotateX(${getRandomRotation()}deg) rotateY(${getRandomRotation()}deg) rotateZ(810deg)`
-        ];
-        cube.style.transform = rotations[randomFace];
-        const value = randomFace + 1;
+        cube.style.transition = 'transform 2.5s cubic-bezier(0.25, 0.25, 0.75, 0.75)';
+        const value = Math.floor(Math.random() * 6) + 1;
+        const [rotateX, rotateY, rotateZ] = getRotationForValue(value);
+        const spins = Math.floor(Math.random() * 3) + 2; // 2-4 spins
+        cube.style.transform = `rotateX(${rotateX + spins * 360}deg) rotateY(${rotateY + spins * 360}deg) rotateZ(${rotateZ + spins * 360}deg)`;
+        
         results.push(value);
 
         setTimeout(() => {
@@ -385,13 +398,30 @@
             updateHistory(resultText);
             rollButton.disabled = false;
           }
-        }, 1500);
+        }, 2500);
       }, 50);
+    }
+
+    function getRotationForValue(value) {
+      const rotations = [
+        [0, 0, 0],     // 1 (top face)
+        [0, -90, 0],   // 2 (right face)
+        [-90, 0, 0],   // 3 (front face)
+        [90, 0, 0],    // 4 (back face)
+        [0, 90, 0],    // 5 (left face)
+        [180, 0, 0],   // 6 (bottom face)
+      ];
+      return rotations[value - 1];
     }
 
     function updateHistory(resultText) {
       rollHistory.unshift(resultText);
       if (rollHistory.length > 10) rollHistory.pop();
+      updateHistoryDisplay();
+      saveData();
+    }
+
+    function updateHistoryDisplay() {
       historyContainer.innerHTML = rollHistory.map(roll => `<div class="history-item">${roll}</div>`).join('');
     }
 
@@ -399,10 +429,14 @@
       totalRolls++;
       totalSum += total;
       highestRoll = Math.max(highestRoll, total);
+      updateStatsDisplay();
+      saveData();
+    }
 
+    function updateStatsDisplay() {
       totalRollsDisplay.textContent = totalRolls;
       highestRollDisplay.textContent = highestRoll;
-      averageRollDisplay.textContent = (totalSum / totalRolls).toFixed(2);
+      averageRollDisplay.textContent = totalRolls > 0 ? (totalSum / totalRolls).toFixed(2) : '0.00';
     }
 
     rollButton.addEventListener('click', rollDice);
@@ -414,6 +448,7 @@
       }
     });
 
+    loadData();
     createDice(1);
   </script>
 </body>
